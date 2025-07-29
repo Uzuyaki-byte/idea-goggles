@@ -4,22 +4,21 @@ from OpenGL.GL import *
 import glfw
 import numpy
 
-
-
-
-
-
-
-
-
 # After importing the libraries, comes the custom functions to make development easier for the future
 
-
-def process_input(window, Loc):
+def process_input(window, Loc, x, y):
     if glfw.get_key(window, glfw.KEY_ESCAPE) == glfw.PRESS:
         glfw.set_window_should_close(window, True)
     if glfw.get_key(window, glfw.KEY_W) == glfw.PRESS:
-        print("Hello")
+        y -= 0.1
+    if glfw.get_key(window, glfw.KEY_S) == glfw.PRESS:
+        y += 0.1
+    if glfw.get_key(window, glfw.KEY_A) == glfw.PRESS:
+        x += 0.1
+    if glfw.get_key(window, glfw.KEY_D) == glfw.PRESS:
+        x -= 0.1
+    glUniform2f(Loc, x, y)
+    return x, y
 
 def makeShader(src, shader_type):
     shader = glCreateShader(shader_type)
@@ -33,12 +32,6 @@ def make_sp(vertex_shader, fragment_shader):
     glAttachShader(shader_program, fragment_shader)
     glLinkProgram(shader_program)
     return shader_program
-
-
-
-
-
-
 
 # Vertices are defined here along with indices
 # Do keep in mind that the vertices are defined top-left first, top-right second, bottom-left third, bottom-right last
@@ -62,17 +55,8 @@ standard_indices = numpy.array( [
     0, 2, 3
 ], dtype = numpy.int32 )
 
-
-
-
-
-# After custom functions are shaders that are gonna be used in the game, they are here now for the sake of organization,
+# After vertices are shaders that are gonna be used in the game, they are here now for the sake of organization,
 # they will be moved to different files later on
-
-
-
-
-
 
 player_vs_src = """
 #version 330 core
@@ -96,7 +80,7 @@ layout (location = 0) in vec3 aPos;
 uniform vec2 offset;
 vec3 finalPos;
 void main() {
-    finalPos = vec3(aPos.x + offset.x, aPos.y + offset.y, aPos.z)
+    finalPos = vec3(aPos.x + offset.x, aPos.y + offset.y, aPos.z);
     gl_Position = vec4(finalPos, 1.0);
 }
 """
@@ -109,20 +93,13 @@ void main() {
 }
 """
 
-
-
-
-
 # You could say here starts the actual code but it is just initializing glfw
-
 
 glfw.init()
 window_width = 800
 window_height = 600
 window = glfw.create_window(window_width, window_height, "basic", None, None)
 glfw.make_context_current(window)
-
-
 
 # Shader stuff for player
 
@@ -141,11 +118,6 @@ sp2 = make_sp(vs2, fs2)
 
 glDeleteShader(vs2)
 glDeleteShader(fs2)
-
-
-
-
-
 
 # Player data
 
@@ -181,15 +153,13 @@ glBufferData(GL_ARRAY_BUFFER, background_vertices.nbytes, background_vertices, G
 glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, None)
 glEnableVertexAttribArray(0)
 
-
 glUseProgram(sp2)
 offsetLoc = glGetUniformLocation(sp2, "offset")
 
-
-
 # Our main loop where we keep updating stuff
 
-
+xPos = 0.0
+yPos = 0.0
 while not glfw.window_should_close(window):
     glClearColor(0.0, 0.0, 1.0, 1.0)
     glClear(GL_COLOR_BUFFER_BIT)
@@ -201,12 +171,11 @@ while not glfw.window_should_close(window):
     glBindVertexArray(background_vao)
     glUseProgram(sp2)
     glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, None)
+    xPos, yPos = process_input(window, offsetLoc, xPos, yPos)
 
     glBindVertexArray(player_vao)
     glUseProgram(sp)
     glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, None)
-
-    process_input(window)
 
     glfw.swap_buffers(window)
     glfw.poll_events()

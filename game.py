@@ -15,16 +15,24 @@ import numpy
 # After importing the libraries, comes the custom functions to make development easier for the future
 
 
-def process_input(window):
+def process_input(window, Loc):
     if glfw.get_key(window, glfw.KEY_ESCAPE) == glfw.PRESS:
         glfw.set_window_should_close(window, True)
+    if glfw.get_key(window, glfw.KEY_W) == glfw.PRESS:
+        print("Hello")
 
 def makeShader(src, shader_type):
     shader = glCreateShader(shader_type)
     glShaderSource(shader, src)
     glCompileShader(shader)
     return shader
-    glDeleteShader(shader)
+
+def make_sp(vertex_shader, fragment_shader):
+    shader_program = glCreateProgram()
+    glAttachShader(shader_program, vertex_shader)
+    glAttachShader(shader_program, fragment_shader)
+    glLinkProgram(shader_program)
+    return shader_program
 
 
 
@@ -66,7 +74,7 @@ standard_indices = numpy.array( [
 
 
 
-vs_src = """
+player_vs_src = """
 #version 330 core
 layout (location = 0) in vec3 aPos;
 void main() {
@@ -74,7 +82,7 @@ void main() {
 }
 """
 
-fs_src = """
+player_fs_src = """
 #version 330 core
 out vec4 FragColor;
 void main() {
@@ -82,15 +90,18 @@ void main() {
 }
 """
 
-vs2_src = """
+background_vs_src = """
 #version 330 core
 layout (location = 0) in vec3 aPos;
+uniform vec2 offset;
+vec3 finalPos;
 void main() {
-    gl_Position = vec4(aPos, 1.0);
+    finalPos = vec3(aPos.x + offset.x, aPos.y + offset.y, aPos.z)
+    gl_Position = vec4(finalPos, 1.0);
 }
 """
 
-fs2_src = """
+background_fs_src = """
 #version 330 core
 out vec4 FragColor;
 void main() {
@@ -115,26 +126,18 @@ glfw.make_context_current(window)
 
 # Shader stuff for player
 
-vs = makeShader(vs_src, GL_VERTEX_SHADER)
-fs = makeShader(fs_src, GL_FRAGMENT_SHADER)
-
-sp = glCreateProgram()
-glAttachShader(sp, vs)
-glAttachShader(sp, fs)
-glLinkProgram(sp)
+vs = makeShader(player_vs_src, GL_VERTEX_SHADER)
+fs = makeShader(player_fs_src, GL_FRAGMENT_SHADER)
+sp = make_sp(vs, fs)
 
 glDeleteShader(vs)
 glDeleteShader(fs)
 
 # Shader stuff for background
 
-vs2 = makeShader(vs2_src, GL_VERTEX_SHADER)
-fs2 = makeShader(fs2_src, GL_FRAGMENT_SHADER)
-
-sp2 = glCreateProgram()
-glAttachShader(sp2, vs2)
-glAttachShader(sp2, fs2)
-glLinkProgram(sp2)
+vs2 = makeShader(background_vs_src, GL_VERTEX_SHADER)
+fs2 = makeShader(background_fs_src, GL_FRAGMENT_SHADER)
+sp2 = make_sp(vs2, fs2)
 
 glDeleteShader(vs2)
 glDeleteShader(fs2)
@@ -146,16 +149,16 @@ glDeleteShader(fs2)
 
 # Player data
 
-vao = glGenVertexArrays(1)
-vbo = glGenBuffers(1)
-ebo = glGenBuffers(1)
+player_vao = glGenVertexArrays(1)
+player_vbo = glGenBuffers(1)
+player_ebo = glGenBuffers(1)
 
-glBindVertexArray(vao)
+glBindVertexArray(player_vao)
 
-glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo)
+glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, player_ebo)
 glBufferData(GL_ELEMENT_ARRAY_BUFFER, standard_indices.nbytes, standard_indices, GL_STATIC_DRAW)
 
-glBindBuffer(GL_ARRAY_BUFFER, vbo)
+glBindBuffer(GL_ARRAY_BUFFER, player_vbo)
 glBufferData(GL_ARRAY_BUFFER, player_vertices.nbytes, player_vertices, GL_STATIC_DRAW)
 
 glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, None)
@@ -163,39 +166,43 @@ glEnableVertexAttribArray(0)
 
 # Background data
 
-vao2 = glGenVertexArrays(1)
-vbo2 = glGenBuffers(1)
-ebo2 = glGenBuffers(1)
+background_vao = glGenVertexArrays(1)
+background_vbo = glGenBuffers(1)
+background_ebo = glGenBuffers(1)
 
-glBindVertexArray(vao2)
+glBindVertexArray(background_vao)
 
-glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo2)
+glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, background_ebo)
 glBufferData(GL_ELEMENT_ARRAY_BUFFER, standard_indices.nbytes, standard_indices, GL_STATIC_DRAW)
 
-glBindBuffer(GL_ARRAY_BUFFER, vbo2)
+glBindBuffer(GL_ARRAY_BUFFER, background_vbo)
 glBufferData(GL_ARRAY_BUFFER, background_vertices.nbytes, background_vertices, GL_STATIC_DRAW)
 
 glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, None)
 glEnableVertexAttribArray(0)
 
 
+glUseProgram(sp2)
+offsetLoc = glGetUniformLocation(sp2, "offset")
 
-# Out main loop where we keep updating stuff
+
+
+# Our main loop where we keep updating stuff
 
 
 while not glfw.window_should_close(window):
-    glClearColor(0.1, 0.4, 0.7, 1.0)
+    glClearColor(0.0, 0.0, 1.0, 1.0)
     glClear(GL_COLOR_BUFFER_BIT)
 
     # bro for some reason this part has weird syntax, some pythonic black magic
     window_width, window_height = glfw.get_framebuffer_size(window) # this is the line I was talking about
     glViewport(0, 0, window_width, window_height)
 
-    glBindVertexArray(vao2)
+    glBindVertexArray(background_vao)
     glUseProgram(sp2)
     glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, None)
 
-    glBindVertexArray(vao)
+    glBindVertexArray(player_vao)
     glUseProgram(sp)
     glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, None)
 
